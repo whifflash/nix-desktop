@@ -1,0 +1,243 @@
+{
+  // Display-profile toggles (kanshi) — the two buttons in the top-left.
+  // Each renders a fixed icon and receives an .active/.inactive class from the
+  // bridge script, so whichever layout is live gets highlighted (see style.css).
+  // "signal": 9 lets `pkill -RTMIN+9 waybar` refresh both after a switch.
+  "custom/display-docked": {
+    "format": "",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 9,
+    "tooltip": true,
+    "exec": "$HOME/.config/waybar/scripts/display-profile.sh status @WB_DISPLAY_DOCKED@ docked",
+    "on-click": "$HOME/.config/waybar/scripts/display-profile.sh switch @WB_DISPLAY_DOCKED@ docked"
+  },
+  "custom/display-laptop": {
+    "format": "",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 9,
+    "tooltip": true,
+    "exec": "$HOME/.config/waybar/scripts/display-profile.sh status @WB_DISPLAY_LAPTOP@ laptop",
+    "on-click": "$HOME/.config/waybar/scripts/display-profile.sh switch @WB_DISPLAY_LAPTOP@ laptop"
+  },
+  // Theme switcher (wofi menu, mirrors the gopass store switcher). The palette
+  // icon opens theme-switcher; the tooltip shows the live scheme and refreshes
+  // because Waybar restarts when palette.css changes after a switch.
+  "custom/theme": {
+    "format": "",
+    "return-type": "json",
+    "interval": "once",
+    "tooltip": true,
+    "exec": "printf '{\"tooltip\":\"Theme: %s\"}' \"$(theme-current 2>/dev/null || echo default)\"",
+    "on-click": "theme-switcher"
+  },
+  "sway/workspaces": {
+    "disable-scroll": true,
+    "persistent_workspaces": {
+      "1": [],
+      "2": [],
+      "3": [],
+      "4": []
+    }
+  },
+  "sway/window": {
+    "format": "{}",
+    "max-length": 50,
+    "tooltip": false
+  },
+  // niri counterparts to the sway/* modules above. The Waybar config is shared
+  // between both compositors; each backend's modules only populate under its own
+  // session (the other silently shows nothing), so both can live in the config
+  // at once. They reuse the same #workspaces / #window CSS as sway/*. Under niri
+  // this is what shows the focused workspace (per output) and window title, so
+  // you can tell which screen/workspace you're on. {output} is in the tooltip.
+  // Workspaces named "1".."7" (see home/niri.nix). Show the number + an app
+  // icon: 1 terminal, 2 code, 3 web, 4 files, 5 misc, 6 chat, 7 mail. Uses the
+  // name (not niri's spatial index) so the label always matches Super+N.
+  "niri/workspaces": {
+    "format": "{value} {icon}",
+    "format-icons": {
+      "1": "",
+      "2": "",
+      "3": "",
+      "4": "",
+      "5": "",
+      "6": "",
+      "7": "",
+      "default": ""
+    },
+    "tooltip-format": "Workspace {value} on {output}"
+  },
+  "niri/window": {
+    "format": "{title}",
+    "separate-outputs": true,
+    "max-length": 50,
+    "tooltip": false
+  },
+  // Focused window's position / total windows on the focused workspace (e.g.
+  // "3/7"), in visual order; excludes the drop-down scratch terminal. Fed by the
+  // window-count script via each WM's event stream, so it updates instantly —
+  // including on focus moves. Works under niri and Sway.
+  "custom/window-count": {
+    "exec": "@WB_WINCOUNT@",
+    "return-type": "json",
+    "format": " {}",
+    "tooltip": true
+  },
+  "custom/notifications": {
+    "tooltip": true,
+    "format": "{icon}",
+    "format-icons": {
+      "none": "",
+      "notification": "",
+      "dnd-none": "",
+      "dnd-notification": "",
+      "inhibited-none": "",
+      "inhibited-notification": "",
+      "dnd-inhibited-none": "",
+      "dnd-inhibited-notification": ""
+    },
+    "return-type": "json",
+    "exec": "swaync-client -swb",
+    "on-click": "swaync-client -d -sw",
+    "on-click-right": "swaync-client -t -sw",
+    "escape": true
+  },
+  // "bluetooth": {
+  //   "interval": 30,
+  //   "format": "{icon}",
+  //   // "format-alt": "{status}",
+  //   "format-icons": {
+  //     "enabled": "",
+  //     "disabled": "ss"
+  //   },
+  //   "on-click": "blueman"
+  // },
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": {
+      "activated": "",
+      "deactivated": ""
+    },
+    "tooltip": "true"
+  },
+  "tray": {
+    //"icon-size": 14,
+    "spacing": 4
+  },
+  "battery": {
+    "bat": "@WB_BATTERY@",
+    "format": "{capacity}% {icon}",
+    "format-icons": ["", "", "", "", ""]
+  },
+  "clock#time": {
+    "interval": 10,
+    "format": "{:%H:%M}",
+    "tooltip": false
+  },
+  "clock#date": {
+    "interval": 20,
+    //"format": "{: %a %e/%m}",
+    "format": "{:%a %e/%m}",
+    // "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+    //"today-format": "<b>{}</b>",
+    "on-click": "gsimplecal",
+    "tooltip": false
+  },
+  "temperature": {
+    //"thermal-zone": 1,
+    "interval": "1",
+    "hwmon-path": "@WB_HWMON@",
+    "critical-threshold": 75,
+    "format-critical": "  {temperatureC}°C",
+    "format": "{icon}  {temperatureC}°C",
+    "format-icons": ["", "", ""],
+    "max-length": 8,
+    "min-length": 7,
+    "tooltip": false
+  },
+  "cpu": {
+    "interval": 5,
+    "format": " {usage:2}%",
+    // "format": "  {max_frequency:1}GHz  􏏴  {usage:2}%",
+    "on-click": "alacritty -e htop --sort-key PERCENT_CPU",
+    "tooltip": false
+  },
+  // Per-connection VPN indicators: one clickable tag per tunnel, coloured
+  // .active/.inactive (@success/@muted in style.css). Left-click toggles that
+  // tunnel. No IP shown. "signal": 11 lets a toggle refresh both instantly.
+  "custom/vpn-wg": {
+    "format": "{}",
+    "return-type": "json",
+    "interval": 5,
+    "signal": 11,
+    "tooltip": true,
+    "exec": "$HOME/.config/waybar/scripts/vpn-status.sh status @WB_VPN_WG@ wg",
+    "on-click": "$HOME/.config/waybar/scripts/vpn-status.sh toggle @WB_VPN_WG@"
+  },
+  "custom/vpn-ovpn": {
+    "format": "{}",
+    "return-type": "json",
+    "interval": 5,
+    "signal": 11,
+    "tooltip": true,
+    "exec": "$HOME/.config/waybar/scripts/vpn-status.sh status @WB_VPN_OVPN@ ovpn",
+    "on-click": "$HOME/.config/waybar/scripts/vpn-status.sh toggle @WB_VPN_OVPN@"
+  },
+  "network": {
+    "interface": "@WB_IFACE@", // pinned to Wi-Fi so VPN tunnels never show here
+    "format-wifi": "  {essid}",
+    "format-ethernet": "{ifname}",
+    "format-linked": "{ifname} (No IP) ",
+    "format-disconnected": "",
+    "format-alt": "{ifname}",
+    "family": "ipv4",
+    "tooltip-format-wifi": "  {ifname} @ {essid}\nStrength: {signalStrength}%\nFreq: {frequency}GHz\n {bandwidthUpBits}  {bandwidthDownBits}",
+    "tooltip-format-ethernet": " {ifname}\n {bandwidthUpBits}  {bandwidthDownBits}"
+  },
+  "custom/weather": {
+    "exec": "curl 'https://wttr.in/@WB_WEATHER@?format=1'",
+    "interval": 3600,
+    "on-click": "gnome-weather"
+  },
+  "pulseaudio": {
+    "scroll-step": 3,
+    "format": "{icon} {volume:2}%",
+    "format-bluetooth": "{icon} {volume:2}%",
+    "format-muted": " {volume:2}%",
+    "format-bluetooth-muted": " {volume:2}%",
+    "format-icons": {
+      "headphone": "",
+      "hands-free": "",
+      "headset": "",
+      "phone": "",
+      "portable": "",
+      "car": "",
+      "default": ["", "", ""]
+    },
+    "tooltip-format": "{desc}: {volume}%",
+    "on-click": "pavucontrol",
+    "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+  },
+  // Microphone (default source): mic glyph + input level when live; a red
+  // mic-slash + "off" when muted. Left-click toggles mute, scroll adjusts gain.
+  "pulseaudio#mic": {
+    "format": "{format_source}",
+    "format-source": " {volume}%",
+    "format-source-muted": " off",
+    "tooltip-format": "Mic {source_desc}: {source_volume}%",
+    "on-scroll-up": "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SOURCE@ 3%+",
+    "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 3%-",
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle",
+    "on-click-right": "pavucontrol"
+  },
+  "backlight": {
+    "device": "backlight",
+    "format": "{percent}% {icon}",
+    "format-icons": ["", ""],
+    "on-click": "brightnessctl -c backlight s 255",
+    "on-click-right": "brightnessctl -c backlight s 25",
+    "tooltip": "click me"
+  }
+}

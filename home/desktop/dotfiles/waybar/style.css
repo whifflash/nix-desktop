@@ -1,0 +1,261 @@
+@import url("palette.css");
+@import url("ornamental.css");
+
+@keyframes blink-warning {
+  70% {
+    color: @fg;
+  }
+  to {
+    color: @warning;
+  }
+}
+
+@keyframes blink-critical {
+  70% {
+    color: @fg;
+  }
+  to {
+    color: @error;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * Styles
+ * -------------------------------------------------------------------------- */
+
+/* Reset all styles */
+* {
+  border: none;
+  border-radius: 0px;
+  min-height: 0;
+  /*margin: 0.15em 0.25em 0.15em 0.25em;*/
+}
+
+/* The whole bar */
+#waybar {
+  background: @bg;
+  color: @fg;
+  font-family: "RobotoMono Nerd Font", "Font Awesome 7 Free";
+  font-size: 9pt;
+  font-weight: bold;
+}
+
+/* Each module */
+#battery,
+#clock,
+#cpu,
+#network,
+#pulseaudio,
+#temperature,
+#custom-weather,
+#tray,
+#backlight,
+#custom-notifications,
+#custom-display-docked,
+#custom-display-laptop,
+#custom-theme,
+#custom-vpn-wg,
+#custom-vpn-ovpn,
+#idle_inhibitor {
+  padding: 0.6em 0.8em;
+}
+
+/* VPN indicators (custom/vpn-*): green when the tunnel is up, accent while it
+ * is connecting (activating), muted when down. Left-click a tag to toggle. */
+#custom-vpn-wg.active,
+#custom-vpn-ovpn.active {
+  color: @success;
+}
+#custom-vpn-wg.activating,
+#custom-vpn-ovpn.activating {
+  color: @accent1;
+}
+#custom-vpn-wg.inactive,
+#custom-vpn-ovpn.inactive {
+  color: @muted;
+}
+
+/* Each module that should blink */
+#temperature,
+#backlight {
+  background: @bg;
+  color: @fg;
+}
+
+#battery {
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  background: @accent2;
+  color: @bg;
+}
+
+/* Each critical module */
+#cpu.critical,
+#temperature.critical,
+#battery.critical {
+  color: @error;
+}
+
+/* Each critical that should blink */
+#temperature.critical,
+#battery.critical.discharging {
+  animation-name: blink-critical;
+  animation-duration: 2s;
+}
+
+/* Each warning */
+#network.disconnected,
+#cpu.warning,
+#temperature.warning,
+#battery.warning {
+  color: @warning;
+}
+
+/* Each warning that should blink */
+#battery.warning.discharging {
+  animation-name: blink-warning;
+  animation-duration: 3s;
+}
+
+/* And now modules themselves in their respective order */
+#clock.time {
+  background: @bg;
+  color: @muted;
+}
+#clock.date {
+  background: @bg;
+  color: @fg;
+}
+
+#idle_inhibitor {
+  background: @surface;
+  color: @fg;
+}
+
+/* Workspaces stuff */
+#workspaces {
+}
+#workspaces button {
+  background: @accent1;
+  padding: 0em 1.2em;
+  color: @surfaceAlt;
+  min-width: 0em;
+}
+#workspaces button.focused {
+  font-weight: bolder; /* Somewhy the bar-wide setting is ignored*/
+}
+#workspaces button.urgent {
+  color: @fg;
+  opacity: 1;
+}
+#workspaces button.current_output.focused {
+  font-weight: bolder;
+  color: @muted;
+}
+
+/* Window count (custom/window-count): number of windows on the focused
+ * workspace, shown next to the workspace indicator. Muted so it stays quiet. */
+#custom-window-count {
+  background: @bg;
+  color: @muted;
+  padding: 0.6em 0.8em;
+}
+
+#cpu {
+  background: @accent1;
+  color: @bg;
+  padding-left: 0em;
+  padding-right: 0.2em;
+}
+#cpu.critical {
+  color: @error;
+}
+
+#temperature {
+  background-color: @accent1;
+  color: @bg;
+  padding-right: 0em;
+}
+#temperature.critical {
+  color: @error;
+}
+
+#pulseaudio {
+  background: @bg;
+  color: @fg;
+}
+#pulseaudio.muted {
+  color: @muted;
+}
+/* Microphone module (pulseaudio#mic): normal fg, red when the mic is muted.
+ * Placed after #pulseaudio.muted so the mic keeps its colour even while the
+ * speaker sink is muted. */
+#pulseaudio.mic {
+  color: @fg;
+}
+#pulseaudio.mic.source-muted {
+  color: @error;
+}
+
+#network {
+  background: @bg;
+  color: @fg;
+}
+#tray {
+  background: @bg;
+  color: @fg;
+}
+
+#window {
+  margin-right: 40px;
+  margin-left: 40px;
+  font-weight: normal;
+}
+
+/* Notification toggle (swaync) — colors come from the active theme palette.
+ * Enabled  -> @fg     (theme foreground, i.e. your "white")
+ * Muted/DnD -> @muted (theme grey)
+ * The subtle @accent2 tint just flags unread notifications while enabled;
+ * drop that rule if you want a plain white<->grey toggle. */
+#custom-notifications {
+  background: @bg;
+  color: @fg;
+}
+#custom-notifications.notification {
+  color: @accent2;
+}
+#custom-notifications.dnd-none,
+#custom-notifications.dnd-notification,
+#custom-notifications.dnd-inhibited-none,
+#custom-notifications.dnd-inhibited-notification {
+  color: @muted;
+}
+
+/* Display-profile toggles (kanshi) — two icon buttons pinned to the top-left.
+ * The button whose profile is currently live gets .active (accent fill); the
+ * other stays muted. The active/inactive class is emitted by the bridge script
+ * scripts/display-profile.sh (status <profile>). */
+#custom-display-docked,
+#custom-display-laptop {
+  background: @bg;
+  color: @muted;
+}
+#custom-display-docked.active,
+#custom-display-laptop.active {
+  background: @accent1;
+  color: @bg;
+}
+#custom-display-docked:hover,
+#custom-display-laptop:hover {
+  color: @fg;
+}
+
+/* Theme switcher — palette icon in the top-left, opens the wofi scheme menu. */
+#custom-theme {
+  background: @bg;
+  color: @muted;
+}
+#custom-theme:hover {
+  color: @accent2;
+}

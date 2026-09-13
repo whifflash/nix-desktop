@@ -1,0 +1,85 @@
+{
+  // The idea of these ornaments is to have a color scheme that changes color from the outside to the inside
+  // in the transition from left to right an arrow is paced with the background color of the outer (previous) layer as its color
+  // and its background color set to the new background
+  // there will be a separate color for the middle, bgc
+  // if we have 4 regions like this
+  // reg0: bg0, fg
+  // reg1: bg1, fg
+  // reg2: bg2, fg
+  // reg3: bg3, fg
+  //
+  // # Left
+  // the transition in the arrows should be like this
+  // bg0
+  // L2R_arrow(color: bg0, background: bg1) -> class: one
+  // bg1
+  // L2R_arrow(color: bg1, background: bg2) -> class: two
+  // bg2
+  // L2R_arrow(color: bg2, background: bg3) -> class: three
+  // bg3
+  // # Center
+  // L2R_ramp(color: bgc, background: bg3) -> class: one
+  // bgc
+  // R2L_ramp(color: bg3, background: bgc) -> class: two
+  // # Right
+  // bg3
+  // R2L_arrow(color: bg2, background: bg3) -> class: three
+  // bg2
+  // R2L_arrow(color: bg1, background: bg2) -> class: two
+  // bg1
+  // R2L_arrow(color: bg0, background: bg1) -> class: one
+  // bg0
+  //
+  // modules place in a region get the regn class and a corresponding background (and foreground if needed)
+  "custom/L2R-arrow": {
+    "format": "",
+    "tooltip": false
+  },
+  "custom/L2R-arrow#one": {
+    "format": "",
+    "tooltip": false
+  },
+  "custom/L2R-arrow#two": {
+    "format": "",
+    "tooltip": false
+  },
+  "custom/L2R-arrow#three": {
+    "format": "",
+    "tooltip": false
+  },
+
+  "custom/R2L-arrow": {
+    "format": "",
+    "tooltip": false
+  },
+  "custom/R2L-arrow#one": {
+    "format": "",
+    "tooltip": false
+  },
+  "custom/R2L-arrow#two": {
+    "format": "",
+    "tooltip": false
+  },
+  "custom/R2L-arrow#three": {
+    "format": "",
+    "tooltip": false
+  },
+
+  "custom/L2R-ramp": {
+    "format": "",
+    "tooltip": false
+  },
+  "custom/L2R-ramp#inv": {
+    "format": "",
+    "tooltip": false
+  },
+  "custom/R2L-ramp": {
+    "format": "",
+    "tooltip": false
+  },
+  "custom/R2L-ramp#inv": {
+    "format": "",
+    "tooltip": false
+  }
+}
