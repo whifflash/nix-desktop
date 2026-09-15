@@ -65,9 +65,12 @@ in
         defaultText = lib.literalExpression ''"''${lib.getExe pkgs.tmux} new-session -A -s scratch"'';
         description = ''
           Command run inside the drop-down terminal (Mod+i / Mod+Shift+Return).
-          The default attaches to a persistent tmux session named "scratch";
-          together with the tmux module's resurrect/continuum that is what makes
-          the drop-down survive reboots.
+          The tmux module (home/apps/tmux.nix) sets this to its `tmux-scratch`
+          launcher, which on a cold tmux server restores the last resurrect save
+          synchronously BEFORE attaching to the persistent "scratch" session, so
+          the drop-down survives reboots without racing a live client. The plain
+          attach here is only the fallback if that module is not loaded. A
+          config.toml [desktop].scratchpadCommand overrides both.
         '';
       };
       title = mkOption {

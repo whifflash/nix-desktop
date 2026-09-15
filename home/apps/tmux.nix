@@ -1,5 +1,83 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
+let
+  resurrectScripts = "${pkgs.tmuxPlugins.resurrect}/share/tmux-plugins/resurrect/scripts";
+
+  # Drop-down launcher: RESTORE BEFORE ATTACH.
+  #
+  # Why: the old default (`tmux new-session -A -s scratch`) started the server,
+  # created a fresh "scratch" and attached the client all at once, and only
+  # THEN did continuum fire a background restore ~1s later. That restore had to
+  # merge into a session the client was already attached to (resurrect's
+  # fragile overwrite-the-first-pane path), inside continuum's 10s "just
+  # started" window, while its switch-client calls yanked the live client
+  # around. Any hiccup = partial restore, lost window names, or a stuck
+  # spinner. It was racy by design, which is why it kept "stopping working".
+  #
+  # Now, on a COLD server (fresh boot / after kill-server) this launcher brings
+  # tmux up detached with a throwaway placeholder, runs resurrect's own
+  # restore.sh synchronously and HEADLESSLY (no client to race, no visible
+  # spinner), then attaches to the fully restored "scratch". On a WARM server
+  # it just attaches. Restore is deterministic and complete before you ever see
+  # the session; continuum's auto-restore is turned off so nothing races us.
+  # Full fidelity is kept (contents, programs, names) because it is the very
+  # same restore.sh, just driven at the right moment.
+  tmuxScratch = pkgs.writeShellApplication {
+    name = "tmux-scratch";
+    runtimeInputs = [
+      pkgs.tmux
+      pkgs.coreutils
+    ];
+    text = ''
+      session=scratch
+      boot=__scratch_boot__
+      scripts=${resurrectScripts}
+
+      # The drop-down is launched by the compositor, never from inside tmux;
+      # make sure a stray TMUX can't make `attach` refuse to nest.
+      unset TMUX
+
+      if ! tmux has-session 2>/dev/null; then
+        # COLD START: server not running. Bring it up detached with a throwaway
+        # placeholder, restore synchronously + headlessly, THEN attach.
+        echo "tmux-scratch: restoring saved session..." >&2
+        tmux new-session -d -s "$boot"
+
+        # Wait (briefly) until tmux.conf + plugins are sourced so resurrect's
+        # options are in place before we restore.
+        for _ in $(seq 1 30); do
+          [ "$(tmux show -gv @resurrect-capture-pane-contents 2>/dev/null || true)" = on ] && break
+          sleep 0.1
+        done
+
+        # resurrect's restore.sh derives the server socket from $TMUX, so hand
+        # it the live socket. It no-ops when there is no save yet. Its exit
+        # status is ignored on purpose: with no client attached its
+        # switch-client calls fail harmlessly (it has no `set -e`), and
+        # `timeout` guarantees a stuck restore can never wedge the drop-down.
+        sock=$(tmux display-message -p '#{socket_path}')
+        TMUX="$sock,0,0" timeout 90 "$scripts/restore.sh" || true
+
+        if tmux has-session -t "=$session" 2>/dev/null; then
+          # Restore recreated "scratch": drop our placeholder.
+          tmux kill-session -t "=$boot" 2>/dev/null || true
+        else
+          # First run (no save yet) or the save had no "scratch": the
+          # placeholder simply becomes the scratch session.
+          tmux rename-session -t "=$boot" "$session"
+        fi
+      fi
+
+      exec tmux attach-session -t "=$session"
+    '';
+  };
+in
 {
+  # Make the launcher the drop-down default. Weaker than config.toml's
+  # [desktop].scratchpadCommand (mkDefault, 1000) so a user override still wins;
+  # stronger than the option's own fallback default (only used with no defs).
+  dynamic.desktop.scratchpad.command = lib.mkOverride 1500 (lib.getExe tmuxScratch);
+  home.packages = [ tmuxScratch ];
+
   programs.tmux = {
     enable = true;
     terminal = "tmux-256color";
@@ -13,10 +91,10 @@
     # tmux-resurrect + tmux-continuum: persist the tmux environment (the "scratch"
     # session behind the drop-down terminal, plus any others) across reboots.
     # Saves land in ~/.local/share/tmux/resurrect/, which is on the persisted
-    # /home (modules/persistence), so they survive a reboot; continuum restores
-    # the last save the next time the tmux server starts — e.g. the first
-    # drop-down open after boot (verified: `new-session -A -s scratch` restores
-    # cleanly, no duplicate/empty session).
+    # /home (modules/persistence), so they survive a reboot. RESTORE is driven by
+    # the `tmux-scratch` launcher above (restore-before-attach on a cold server),
+    # NOT by continuum's racy at-server-start auto-restore. continuum is kept
+    # only for its periodic autosave.
     plugins = with pkgs.tmuxPlugins; [
       {
         # FULL restore, like the original working config: pane CONTENTS
@@ -52,7 +130,10 @@
         # plugin that overwrites status-right would silently disable it.
         plugin = continuum;
         extraConfig = ''
-          set -g @continuum-restore 'on'
+          # Auto-restore OFF on purpose: the tmux-scratch launcher restores
+          # deterministically before attaching. Leaving this on would fire a
+          # second, racing restore at server start (the old source of flakiness).
+          set -g @continuum-restore 'off'
           set -g @continuum-save-interval '15'
         '';
       }
