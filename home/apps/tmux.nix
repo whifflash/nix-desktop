@@ -86,7 +86,16 @@ in
     historyLimit = 100000;
     shell = "${pkgs.zsh}/bin/zsh";
     mouse = true;
-    escapeTime = 10;
+    # 50ms, not the more aggressive 10ms. This is how long tmux waits after an
+    # ESC on its INPUT stream to decide "lone Esc key" vs "start of a sequence"
+    # — and terminal query REPLIES (OSC 4/10/11 colour queries) arrive on that
+    # same path as keystrokes. At 10ms a reply split across reads (exactly what
+    # happens during a busy pane switch) timed out: tmux ate the ESC as a lone
+    # Esc and injected the remainder as literal keys, which is where the stray
+    # `rgb:d7d7/5f5f/8787` fragments (d7 / d7d7 / 5f5f — xterm 256-colour cube
+    # levels in OSC reply encoding) came from. 50ms is still far below the
+    # threshold where Esc feels laggy in vim. tmux's own default is 500.
+    escapeTime = 50;
     prefix = "C-a";
     keyMode = "vi";
 
