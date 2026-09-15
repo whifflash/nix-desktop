@@ -11,6 +11,13 @@ let
 
   term = lib.getExe cfg.terminal;
 
+  # Where niri saves screenshots. niri only creates the LAST folder of
+  # screenshot-path, so if ~/Pictures is missing the on-disk save fails
+  # silently and only the clipboard copy survives — which looks like "Space
+  # only copies". The activation step below pre-creates it. One binding drives
+  # both the KDL path and the mkdir so they can never drift.
+  screenshotDir = "${config.home.homeDirectory}/Pictures/Screenshots";
+
   # Focus-ring colours from the resolved palette tokens (home/themes/tokens.nix),
   # the same source Sway's window colours use — no second palette lookup, no
   # drift. `primary` mirrors Sway's focused border. Resolves at build time:
@@ -126,7 +133,12 @@ let
 
     prefer-no-csd
 
-    screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
+    // Screenshots. In the built-in screenshot UI (Print) Space/Enter save to
+    // disk AND copy to the clipboard; Ctrl+C is clipboard-only. Those UI keys
+    // are hardcoded by niri (not configurable). niri only mkdirs the LAST
+    // folder of this path, so the dir is pre-created by this module's
+    // activation step (see screenshotDir) — otherwise the save fails silently.
+    screenshot-path "${screenshotDir}/Screenshot from %Y-%m-%d %H-%M-%S.png"
 
     // niri has no built-in Xwayland; xwayland-satellite (installed by the niri
     // system module, spawned below) provides X11 support. DISPLAY is exported so
@@ -270,6 +282,8 @@ let
 
         Print { screenshot; }
         Mod+Print { screenshot-window; }
+        // Whole focused screen straight to disk (+clipboard), no selection UI.
+        Mod+Shift+S hotkey-overlay-title="Screenshot screen to file" { screenshot-screen; }
 
         XF86AudioRaiseVolume hotkey-overlay-title="Volume up" allow-when-locked=true { spawn "${pkgs.wireplumber}/bin/wpctl" "set-volume" "-l" "1.0" "@DEFAULT_AUDIO_SINK@" "5%+"; }
         XF86AudioLowerVolume hotkey-overlay-title="Volume down" allow-when-locked=true { spawn "${pkgs.wireplumber}/bin/wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "5%-"; }
@@ -292,6 +306,12 @@ in
       brightnessctl
       gsimplecal
     ];
+
+    # Pre-create the screenshot folder: niri only mkdirs the LAST path
+    # component, so a missing ~/Pictures would silently drop the on-disk copy.
+    home.activation.niriScreenshotDir = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      mkdir -p ${lib.escapeShellArg screenshotDir}
+    '';
 
     xdg.configFile."niri/config.kdl".text = niriConfig;
   };
