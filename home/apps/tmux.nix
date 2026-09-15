@@ -205,7 +205,18 @@ in
       # time the drop-down terminal is hidden. This runs resurrect's save script
       # directly, so it is independent of continuum's status-right autosave and
       # keeps working even after a live theme switch rewrites status-right.
-      set-hook -g client-detached 'run-shell "${pkgs.tmuxPlugins.resurrect}/share/tmux-plugins/resurrect/scripts/save.sh"'
+      #
+      # `quiet` is save.sh's own first-argument switch (SCRIPT_OUTPUT): it skips
+      # BOTH the "Saving..." spinner and the trailing "Tmux environment saved!"
+      # message. Those are why hiding the drop-down left a notification painted
+      # over the pane on the next show. It is the same mode continuum uses for
+      # its periodic autosaves, which is exactly why you never see those.
+      #
+      # `-b` backgrounds the hook. Without it run-shell is synchronous and holds
+      # the tmux server for the whole save, so a multi-second save on hide
+      # stalled the NEXT show by that long — the pane appearing late was the
+      # previous save still finishing.
+      set-hook -g client-detached 'run-shell -b "${resurrectScripts}/save.sh quiet"'
     '';
   };
 }
