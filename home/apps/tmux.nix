@@ -152,7 +152,22 @@ in
 
     extraConfig = ''
       set -g default-terminal "tmux-256color"
-      set -ag terminal-overrides ",xterm-256color:RGB"
+      # Declare the outer terminal's capabilities instead of letting tmux probe
+      # for them. tmux 3.2+ feature-detects on every CLIENT ATTACH, and because
+      # the drop-down is ephemeral (hiding closes the window) that means a fresh
+      # probe — including a 256-colour palette enumeration via OSC 4 — on every
+      # single toggle. tmux mangled some of those replies into the pane as
+      # literal `rgb:d7d7/5f5f/8787` fragments (confirmed with `cat -v`: the
+      # ESC \ terminator survived but the `ESC ] 4 ; N ; rgb:` header was eaten).
+      # Declaring the feature up front removes the reason to ask.
+      #
+      # terminal-features is the tmux 3.2+ mechanism; the old terminal-overrides
+      # ",xterm-256color:RGB" this replaces declares the same capability but does
+      # NOT suppress detection. Both TERM spellings are covered because alacritty
+      # may report either. Only RGB is declared on purpose — asserting features a
+      # terminal lacks causes rendering corruption, so we do not over-declare.
+      set -as terminal-features ",alacritty*:RGB"
+      set -as terminal-features ",xterm-256color:RGB"
 
       # automatic-rename stays at the default (on). We do NOT force it off:
       # resurrect preserves custom window names on its own (a renamed window has
