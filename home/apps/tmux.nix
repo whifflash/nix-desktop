@@ -72,10 +72,12 @@ let
   };
 in
 {
-  # Make the launcher the drop-down default. Weaker than config.toml's
-  # [desktop].scratchpadCommand (mkDefault, 1000) so a user override still wins;
-  # stronger than the option's own fallback default (only used with no defs).
-  dynamic.desktop.scratchpad.command = lib.mkOverride 1500 (lib.getExe tmuxScratch);
+  # Make the launcher the drop-down default. Priority 1200 sits strictly
+  # between config.toml's [desktop].scratchpadCommand (mkDefault = 1000, so a
+  # user override still wins) and the option's own `default`, which the module
+  # system injects as a REAL definition at mkOptionDefault = 1500. (Using 1500
+  # here collided with it: "conflicting definition values".)
+  dynamic.desktop.scratchpad.command = lib.mkOverride 1200 (lib.getExe tmuxScratch);
   home.packages = [ tmuxScratch ];
 
   programs.tmux = {
