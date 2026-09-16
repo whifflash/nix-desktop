@@ -83,6 +83,18 @@ in
         default = "dropdown-term";
         description = "app-id niri matches to float and place the drop-down window.";
       };
+      stashWorkspace = mkOption {
+        type = types.str;
+        default = "stash";
+        description = ''
+          niri workspace the drop-down is PARKED on while hidden. Hiding moves
+          the window here rather than closing it, so its terminal — and with it
+          the attached tmux client — stays alive. Named workspaces always exist,
+          so this one shows up in workspace navigation; that is the deliberate
+          cost of never tearing the window down. Unused under Sway, which has a
+          real scratchpad.
+        '';
+      };
     };
 
     waybar = {

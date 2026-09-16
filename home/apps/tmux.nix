@@ -216,7 +216,15 @@ in
       # the tmux server for the whole save, so a multi-second save on hide
       # stalled the NEXT show by that long — the pane appearing late was the
       # previous save still finishing.
-      set-hook -g client-detached 'run-shell -b "${resurrectScripts}/save.sh quiet"'
+      # stdout+stderr go to /dev/null, exactly as continuum invokes it
+      # (`"$resurrect_save_script_path" "quiet" >/dev/null 2>&1 &`). save.sh is
+      # NOT guaranteed silent even in quiet mode: its dumps are redirected to the
+      # resurrect file, but dump_pane_contents / pane_contents_create_archive /
+      # remove_old_backups / `rm <dir>/*` run unredirected, so a stray warning
+      # (e.g. rm on an empty dir) reaches stdout/stderr. run-shell CAPTURES that
+      # and tmux then displays it — and because the capture uses `-e` (escape
+      # sequences preserved) what surfaces is garbled escapes in the pane.
+      set-hook -g client-detached 'run-shell -b "${resurrectScripts}/save.sh quiet >/dev/null 2>&1"'
     '';
   };
 }

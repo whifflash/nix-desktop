@@ -54,13 +54,24 @@ let
   touchpadTap = lib.optionalString cfg.touchpad.tap "tap";
 
   # Drop-down ("quake") terminal for niri, bound to Mod+i. niri has no native
-  # scratchpad and its workspaces are a dynamic spatial stack (a stash workspace
-  # can't be hidden — it would steal Mod+1 and clutter j/k navigation), so this is
-  # *ephemeral*: hiding CLOSES the window and showing re-spawns it. All state
-  # lives in whatever dynamic.desktop.scratchpad.command runs (a persistent tmux
-  # session by default), so nothing is lost — closing the terminal only detaches
-  # the client. Net effect: zero workspace-stack impact.
+  # scratchpad, so hiding PARKS the window on a dedicated named workspace
+  # (scratchpad.stashWorkspace) and showing summons it back.
+  #
+  # This used to be *ephemeral* — hiding closed the window, showing re-spawned
+  # it — on the theory that the tmux session made the terminal disposable. It
+  # did, but it meant every single toggle attached a BRAND-NEW tmux client, and
+  # tmux interrogates the terminal on each client attach: it enumerated
+  # alacritty's 256-colour palette via OSC 4, and some of those replies leaked
+  # into panes as literal `rgb:afaf/d7d7/8787` fragments. escape-time,
+  # terminal-features and quieting the save hook all failed to stop it because
+  # they treated the symptom; the trigger was the per-toggle reattach itself.
+  # Parking keeps one client attached for the life of the session, so there is
+  # no reattach and nothing to enumerate.
+  #
+  # Cost: named workspaces always exist, so the stash shows up in workspace
+  # navigation. That is the deliberate trade for a window that never dies.
   dropdownAppId = cfg.scratchpad.appId;
+  stashWs = cfg.scratchpad.stashWorkspace;
   dropdownTerm = pkgs.writeShellScript "niri-dropdown-term" ''
     set -euo pipefail
     app_id="${dropdownAppId}"
@@ -85,7 +96,10 @@ let
       # On the current workspace: if focused, hide it by CLOSING the window (the
       # scratch session persists server-side); otherwise just raise it.
       if [ "$win_focused" = "true" ]; then
-        niri msg action close-window --id "$id"
+        # HIDE = park on the stash workspace. Never close: closing destroys the
+        # terminal and detaches tmux, and the next show's reattach is what made
+        # tmux re-enumerate the palette and garble panes.
+        niri msg action move-window-to-workspace "${stashWs}" --window-id "$id" --focus false
       else
         niri msg action focus-window --id "$id"
       fi
@@ -156,6 +170,9 @@ let
     // Persistent named workspaces. Apps pin here via the window-rules below;
     // Super+N focus them, Super+Shift+N send a column.
     ${wsDecls}
+    // Parking spot for the drop-down terminal (see dropdownTerm). Declared
+    // separately from the numbered workspaces so it gets no Mod+N binding.
+    workspace "${stashWs}"
 
     spawn-at-startup "${pkgs.waybar}/bin/waybar"
     spawn-at-startup "${pkgs.xwayland-satellite}/bin/xwayland-satellite"
