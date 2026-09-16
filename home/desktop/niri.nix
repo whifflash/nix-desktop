@@ -35,18 +35,26 @@ let
     lib.optionalString (wp.enable && wp.dir != null)
       ''spawn-at-startup "${pkgs.swaybg}/bin/swaybg" "-i" "${toString wp.dir}/${wp.file}" "-m" "${wp.mode}"'';
 
-  # Named workspaces, in order. Super+N focuses the Nth and Super+Shift+N moves
-  # the focused column there; apps are pinned to them by app-id in the
-  # window-rules block below, so they always land on their workspace whenever
-  # opened. Names are the Super+N number so the bar label always matches the
-  # shortcut (niri's own spatial index can drift after a live config reload).
+  # Named workspaces, in order, starting at "2" — the drop-down's stash
+  # workspace is declared FIRST and permanently occupies position 1.
+  #
+  # That offset is load-bearing, not cosmetic. niri parses a NUMERIC workspace
+  # reference as an INDEX, not a name, so `focus-workspace "6"` means "index 6".
+  # With the stash pinned at index 1, workspace "2" sits at index 2, "3" at
+  # index 3, and so on — name and index agree, so a numeric reference resolves
+  # to the same workspace under either reading. (Adding the stash while the list
+  # still began at "1" broke that agreement by one, which is what made every
+  # drop-down toggle walk one workspace further down.)
+  #
+  # Bindings are Mod+(position + 1), so the first entry is Mod+2. Mod+1 is left
+  # free on purpose: it would only ever focus the parking spot.
   workspaces = cfg.niri.workspaces;
   wsDecls = lib.concatStringsSep "\n    " (map (n: ''workspace "${n}"'') workspaces);
   wsFocus = lib.concatStringsSep "\n" (
-    lib.imap1 (i: n: ''Mod+${toString i} { focus-workspace "${n}"; }'') workspaces
+    lib.imap1 (i: n: ''Mod+${toString (i + 1)} { focus-workspace "${n}"; }'') workspaces
   );
   wsMove = lib.concatStringsSep "\n" (
-    lib.imap1 (i: n: ''Mod+Shift+${toString i} { move-column-to-workspace "${n}"; }'') workspaces
+    lib.imap1 (i: n: ''Mod+Shift+${toString (i + 1)} { move-column-to-workspace "${n}"; }'') workspaces
   );
 
   xkbVariant = lib.optionalString (cfg.keyboard.variant != "") ''variant "${cfg.keyboard.variant}"'';
@@ -107,15 +115,34 @@ let
       # Stashed or on another workspace → summon it here and focus it. Reference
       # the current workspace by name; if unnamed, name it just for the move, then
       # remove the name (avoids fragile per-output workspace indices).
+      # ALWAYS route via a temporary, NON-NUMERIC workspace name.
+      #
+      # niri parses a numeric workspace reference as an INDEX, not a name
+      # (WorkspaceReferenceArg = Id | Index | Name). So passing the current
+      # workspace's own name — "6" — moved the window to index 6 instead of the
+      # workspace called "6". That was harmless while the stack was exactly
+      # 1..7 and index N happened to equal workspace "N", but the stash
+      # workspace shifts those indices, so every toggle landed one workspace
+      # further down and walked you toward the stash.
+      #
+      # A non-numeric name is unambiguous, so this works whatever the indices
+      # are. The original name is restored afterwards (or the temp name dropped
+      # if the workspace had none); the trap keeps that true even if a niri
+      # call fails partway, since the script runs under `set -e`.
       cur_name=$(printf '%s' "$cur" | ${pkgs.jq}/bin/jq -r '.name // empty')
-      if [ -n "$cur_name" ]; then
-        niri msg action move-window-to-workspace "$cur_name" --window-id "$id" --focus false
-      else
-        tmp="__dropdown_summon__"
-        niri msg action set-workspace-name "$tmp"
-        niri msg action move-window-to-workspace "$tmp" --window-id "$id" --focus false
-        niri msg action unset-workspace-name "$tmp"
-      fi
+      tmp="__dropdown_summon__"
+      restore_ws_name() {
+        if [ -n "$cur_name" ]; then
+          niri msg action set-workspace-name "$cur_name" || true
+        else
+          niri msg action unset-workspace-name "$tmp" || true
+        fi
+      }
+      trap restore_ws_name EXIT
+      niri msg action set-workspace-name "$tmp"
+      niri msg action move-window-to-workspace "$tmp" --window-id "$id" --focus false
+      restore_ws_name
+      trap - EXIT
       niri msg action focus-window --id "$id"
     fi
   '';
@@ -169,10 +196,12 @@ let
 
     // Persistent named workspaces. Apps pin here via the window-rules below;
     // Super+N focus them, Super+Shift+N send a column.
-    ${wsDecls}
     // Parking spot for the drop-down terminal (see dropdownTerm). Declared
-    // separately from the numbered workspaces so it gets no Mod+N binding.
+    // FIRST so it permanently holds index 1, which keeps every numbered
+    // workspace's name equal to its index (see the wsDecls comment above). It
+    // gets no Mod+N binding of its own.
     workspace "${stashWs}"
+    ${wsDecls}
 
     spawn-at-startup "${pkgs.waybar}/bin/waybar"
     spawn-at-startup "${pkgs.xwayland-satellite}/bin/xwayland-satellite"
@@ -215,11 +244,8 @@ let
     // Whenever one of these apps opens it lands on its named workspace, however
     // it was launched. app-id is a case-insensitive regex; if one doesn't match,
     // check the real id with:  niri msg -j windows | jq -r '.[].app_id'
-    window-rule {
-        match app-id="(?i)(alacritty|foot|kitty|wezterm|ghostty)"
-        exclude app-id="${dropdownAppId}"
-        open-on-workspace "1"
-    }
+    // Terminals are deliberately NOT pinned — they open on whatever workspace
+    // you are on. (The drop-down has its own floating rule above regardless.)
     window-rule {
         match app-id="(?i)zed"
         open-on-workspace "2"

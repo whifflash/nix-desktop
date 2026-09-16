@@ -143,7 +143,6 @@ in
       workspaces = mkOption {
         type = types.listOf types.str;
         default = [
-          "1"
           "2"
           "3"
           "4"
@@ -151,7 +150,14 @@ in
           "6"
           "7"
         ];
-        description = "Named, persistent niri workspaces in order; Mod+N focuses the Nth. The app→workspace pinning rules reference \"1\"–\"7\".";
+        description = ''
+          Named, persistent niri workspaces in order. The drop-down's stash
+          workspace occupies position 1, so these start at "2" and the Nth entry
+          is bound to Mod+(N+1) -- workspace "2" is Mod+2. Keeping each name
+          equal to its index also makes niri's numeric workspace references
+          unambiguous: niri parses a numeric reference as an INDEX, not a name.
+          The app->workspace pinning rules reference "2"-"7".
+        '';
       };
     };
   };
