@@ -177,10 +177,33 @@ let
     t:
     let
       a = mkAnsi t;
+      # Every UI component takes base/background plus four emphasis slots. The
+      # emphasis ramp is shared so highlights stay consistent across components.
+      comp = name: base: background: ''
+        ${name} {
+            base ${rgb base}
+            background ${rgb background}
+            emphasis_0 ${rgb t.accent1}
+            emphasis_1 ${rgb t.primary}
+            emphasis_2 ${rgb t.secondary}
+            emphasis_3 ${rgb t.accent3}
+        }
+      '';
     in
     ''
       // Dynamic tokenized theme — generated from palette tokens.
-      // Zellij expects decimal rgb triples, not hex.
+      // Zellij takes DECIMAL rgb triples, not hex.
+      //
+      // Two layers, both emitted on purpose:
+      //   * base palette (fg/bg/red/…) — indexed-colour fallback inside panes.
+      //   * UI components (ribbon/frame/text/…) — the actual chrome: tab bar,
+      //     status bar and pane frames. Where both could apply, the components
+      //     win, which is what makes the bar follow the palette rather than
+      //     zellij's stock green.
+      //
+      // NOTE: the docs say exit_code_success/_error "only use base". They do
+      // not — zellij 0.45 rejects a base-only block and needs the full six
+      // keys, same as every other component. Verified against the binary.
       themes {
           dynamic-tokenized-theme {
               fg ${rgb t.fg}
@@ -194,6 +217,21 @@ let
               cyan ${rgb a.cyan}
               white ${rgb a.white}
               orange ${rgb t.accent1}
+
+              ${comp "text_unselected" t.fg t.bg}
+              ${comp "text_selected" t.bg t.primary}
+              ${comp "ribbon_unselected" t.muted t.surface}
+              ${comp "ribbon_selected" t.bg t.primary}
+              ${comp "table_title" t.primary t.bg}
+              ${comp "table_cell_unselected" t.fg t.bg}
+              ${comp "table_cell_selected" t.bg t.primary}
+              ${comp "list_unselected" t.fg t.bg}
+              ${comp "list_selected" t.bg t.primary}
+              ${comp "frame_unselected" t.border t.bg}
+              ${comp "frame_selected" t.primary t.bg}
+              ${comp "frame_highlight" t.accent1 t.bg}
+              ${comp "exit_code_success" t.success t.bg}
+              ${comp "exit_code_error" t.error t.bg}
           }
       }
     '';
