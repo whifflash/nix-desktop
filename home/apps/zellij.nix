@@ -78,19 +78,41 @@ let
     }
   '';
 
-  # An empty tab list still needs a valid layout, else zellij refuses to start.
-  layoutKdl =
-    if cfg.tabs == [ ] then
+  # default_tab_template applies to EVERY tab, so each one gets the bars. The
+  # `children` node marks where the tab's own panes are spliced in. Plugin names
+  # match `zellij setup --dump-layout default`.
+  tabTemplate =
+    if cfg.bar == "none" then
+      ""
+    else if cfg.bar == "compact" then
       ''
-        layout {
-            pane
+        default_tab_template {
+            children
+            pane size=1 borderless=true {
+                plugin location="compact-bar"
+            }
         }
       ''
     else
       ''
-        layout {
-        ${lib.concatMapStrings mkTab cfg.tabs}}
+        default_tab_template {
+            pane size=1 borderless=true {
+                plugin location="tab-bar"
+            }
+            children
+            pane size=1 borderless=true {
+                plugin location="status-bar"
+            }
+        }
       '';
+
+  # An empty tab list still needs a valid layout, else zellij refuses to start.
+  # A bare `tab` picks up the template above and gets a default pane.
+  layoutKdl = ''
+    layout {
+    ${tabTemplate}${if cfg.tabs == [ ] then "    tab
+" else lib.concatMapStrings mkTab cfg.tabs}}
+  '';
 in
 {
   options.dynamic.zellij = {
@@ -178,6 +200,26 @@ in
         Unbind the Ctrl keys zellij's modal defaults take over
         (Ctrl-p/n/s/o/t/h), which otherwise shadow shell history, fzf and
         Backspace. Redundant once the tmux prefix is in place.
+      '';
+    };
+
+    bar = lib.mkOption {
+      type = lib.types.enum [
+        "default"
+        "compact"
+        "none"
+      ];
+      default = "default";
+      description = ''
+        Which status UI each tab gets. "default" is zellij's own: a tab-bar
+        across the top (tab names) and a status-bar along the bottom (mode +
+        key hints). "compact" is the single-line compact-bar instead. "none"
+        drops both.
+
+        This has to be stated explicitly: supplying ANY custom layout replaces
+        zellij's built-in one, and the bars live in that layout as plugin panes
+        — so a layout without them silently comes up with no tab names and no
+        overview at all.
       '';
     };
 
