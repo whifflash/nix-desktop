@@ -111,7 +111,8 @@ in
             "${mod}+q" = "kill";
             "${mod}+d" = "exec ${pkgs.wofi}/bin/wofi --show drun";
 
-            "${mod}+i" = "exec ${config.home.homeDirectory}/.config/sway/scripts/toggle_scratchpad.sh";
+            "${mod}+${lib.toLower cfg.scratchpad.key}" =
+              "exec ${config.home.homeDirectory}/.config/sway/scripts/toggle_scratchpad.sh";
             "${mod}+Shift+Return" = "exec ${term} -t ${scratchTitle} -e ${cfg.scratchpad.command}";
 
             "${mod}+Shift+r" = "reload";

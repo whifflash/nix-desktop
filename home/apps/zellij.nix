@@ -27,6 +27,57 @@ let
       }
     '';
 
+  # Ctrl-<letter> sends the control byte of that letter: Ctrl-a = 1 (SOH),
+  # Ctrl-b = 2 (STX). Used for the prefix passthrough below, so pressing the
+  # prefix twice types a literal one — tmux's `send-prefix`.
+  ctrlBytes = lib.listToAttrs (
+    lib.imap1 (i: ch: lib.nameValuePair ch i) (lib.stringToCharacters "abcdefghijklmnopqrstuvwxyz")
+  );
+  prefixLetter = lib.toLower (lib.last (lib.splitString " " cfg.tmuxMode.prefix));
+  prefixByte = ctrlBytes.${prefixLetter} or 1;
+
+  # Keybinds must go in extraConfig as raw KDL: home-manager's `settings` runs
+  # through toKDL, which cannot express bind blocks (nix-community/home-manager#4659).
+  # `keybinds` MERGES with zellij's defaults unless clear-defaults=true, so this
+  # only adds/overrides what we care about and leaves the rest intact.
+  keybindsKdl = ''
+    keybinds {
+        // Zellij ships a built-in `tmux` mode — a prefix-style island in an
+        // otherwise modal keymap. Default trigger is Ctrl-b; retarget it at the
+        // prefix so the muscle memory carries over.
+        shared_except "tmux" "locked" {
+            bind "${cfg.tmuxMode.prefix}" { SwitchToMode "Tmux"; }
+        }
+        tmux {
+            // Prefix twice = send a literal prefix through (tmux send-prefix).
+            bind "${cfg.tmuxMode.prefix}" { Write ${toString prefixByte}; SwitchToMode "Normal"; }
+            // Splits matching the old tmux config: | horizontal, - vertical.
+            // (zellij's tmux mode ships " and % for these; both now work.)
+            bind "|" { NewPane "Right"; SwitchToMode "Normal"; }
+            bind "-" { NewPane "Down"; SwitchToMode "Normal"; }
+            // Resize, which zellij's tmux mode omits entirely. Stays in Tmux
+            // mode so repeats work like tmux's `bind -r`.
+            bind "H" { Resize "Increase Left"; }
+            bind "J" { Resize "Increase Down"; }
+            bind "K" { Resize "Increase Up"; }
+            bind "L" { Resize "Increase Right"; }
+        }
+    ${lib.optionalString cfg.freeShellKeys ''
+
+      // Give the shell back the Ctrl keys zellij's modal defaults claim.
+      // Ctrl-p/Ctrl-n are history, Ctrl-s forward-search, Ctrl-t fzf's file
+      // widget, Ctrl-o operate-and-get-next, and Ctrl-h is Backspace on many
+      // terminals. With the prefix above they are redundant anyway.
+      shared_except "pane" "locked" { unbind "Ctrl p"; }
+      shared_except "resize" "locked" { unbind "Ctrl n"; }
+      shared_except "scroll" "locked" { unbind "Ctrl s"; }
+      shared_except "session" "locked" { unbind "Ctrl o"; }
+      shared_except "tab" "locked" { unbind "Ctrl t"; }
+      shared_except "move" "locked" { unbind "Ctrl h"; }
+    ''}
+    }
+  '';
+
   # An empty tab list still needs a valid layout, else zellij refuses to start.
   layoutKdl =
     if cfg.tabs == [ ] then
@@ -99,6 +150,37 @@ in
       '';
     };
 
+    tmuxMode = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Retarget zellij's built-in `tmux` mode at `prefix` and extend it with
+          the splits/resize bindings its default set omits. This is not fighting
+          zellij: the tmux mode ships with it, we only move the trigger key.
+        '';
+      };
+      prefix = lib.mkOption {
+        type = lib.types.str;
+        default = "Ctrl a";
+        example = "Ctrl b";
+        description = ''
+          Prefix that enters tmux mode. Must be `Ctrl <letter>`; the letter also
+          determines the control byte sent when the prefix is pressed twice.
+        '';
+      };
+    };
+
+    freeShellKeys = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Unbind the Ctrl keys zellij's modal defaults take over
+        (Ctrl-p/n/s/o/t/h), which otherwise shadow shell history, fzf and
+        Backspace. Redundant once the tmux prefix is in place.
+      '';
+    };
+
     scrollbackLines = lib.mkOption {
       type = lib.types.int;
       default = 10000;
@@ -152,6 +234,8 @@ in
       # Wayland clipboard. zellij ships x11/osx alternatives; on darwin we leave
       # its own default in place rather than pointing at a Linux-only binary.
       // lib.optionalAttrs isLinux { copy_command = "wl-copy"; };
+
+      extraConfig = lib.optionalString cfg.tmuxMode.enable keybindsKdl;
 
       # Written to ~/.config/zellij/layouts/<sessionName>.kdl.
       layouts.${cfg.sessionName} = layoutKdl;

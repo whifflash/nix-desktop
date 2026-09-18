@@ -47,6 +47,9 @@ in
     }
     // lib.optionalAttrs (d.scratchpadCommand != "") {
       scratchpad.command = lib.mkDefault d.scratchpadCommand;
+    }
+    // lib.optionalAttrs (d.scratchpadKey != "") {
+      scratchpad.key = lib.mkDefault d.scratchpadKey;
     };
   };
 

@@ -78,6 +78,16 @@ in
         default = "TMuxScratchpad";
         description = "Window title Sway matches to treat the drop-down as its scratchpad.";
       };
+      key = mkOption {
+        type = types.str;
+        default = "i";
+        example = "o";
+        description = ''
+          Single key combined with the modifier to toggle the drop-down
+          (Mod+<key>). Uppercased for niri, lowercased for Sway, where an
+          uppercase letter would mean Shift.
+        '';
+      };
       appId = mkOption {
         type = types.str;
         default = "dropdown-term";

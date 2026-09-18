@@ -42,6 +42,7 @@ let
       keyboardOptions = "";
       touchpadTap = true;
       scratchpadCommand = ""; # "" = module default (zellij "scratch" session)
+      scratchpadKey = "i"; # drop-down toggle is Mod+<this>
       waybarVpnWg = ""; # NetworkManager connection names; "" = no toggle button
       waybarVpnOvpn = "";
       waybarDisplayDocked = ""; # kanshi profile names; "" = no display buttons

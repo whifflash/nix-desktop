@@ -229,7 +229,7 @@ let
         }
     }
 
-    // Drop-down terminal (Mod+i): floating, ~70%×60%, anchored to the top of the
+    // Drop-down terminal (Mod+<scratchpad.key>): floating, ~70%×60%, anchored to the top of the
     // screen (quake style). Matched by the app-id the terminal is launched with in
     // the toggle script (dropdownTerm). Only this window is floated.
     window-rule {
@@ -273,7 +273,7 @@ let
         Mod+P hotkey-overlay-title="Password launcher" { spawn "sh" "-lc" "gopass-launcher"; }
         Mod+Shift+P hotkey-overlay-title="Password store switcher" { spawn "sh" "-lc" "gopass-switcher"; }
         Mod+Shift+T hotkey-overlay-title="Theme switcher" { spawn "sh" "-lc" "theme-switcher"; }
-        Mod+I hotkey-overlay-title="Drop-down terminal" { spawn "${dropdownTerm}"; }
+        Mod+${lib.toUpper cfg.scratchpad.key} hotkey-overlay-title="Drop-down terminal" { spawn "${dropdownTerm}"; }
 
         Mod+Q { close-window; }
         Mod+Shift+X hotkey-overlay-title="Lock screen" { spawn "${pkgs.swaylock-effects}/bin/swaylock" "-f"; }
