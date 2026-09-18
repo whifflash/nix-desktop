@@ -41,7 +41,7 @@ let
       keyboardVariant = "";
       keyboardOptions = "";
       touchpadTap = true;
-      scratchpadCommand = ""; # "" = module default (persistent tmux "scratch" session)
+      scratchpadCommand = ""; # "" = module default (zellij "scratch" session)
       waybarVpnWg = ""; # NetworkManager connection names; "" = no toggle button
       waybarVpnOvpn = "";
       waybarDisplayDocked = ""; # kanshi profile names; "" = no display buttons
@@ -60,6 +60,15 @@ let
     gopass = {
       defaultStore = "~/.password-store";
       stores = [ "~/.password-store" ];
+    };
+
+    # → dynamic.zellij.* (home/apps/zellij.nix). [[zellij.tabs]] declares the
+    # STABLE tabs of the drop-down session (name + optional cwd/command) so their
+    # names cannot go missing on restore. Ad-hoc tabs still return via zellij's
+    # own session serialization.
+    zellij = {
+      tabs = [ ];
+      defaultShell = "";
     };
 
     # → services.repo-sync.instances (home/services/repo-sync.nix). One TOML

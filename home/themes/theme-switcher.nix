@@ -14,7 +14,8 @@ let
   # Reload story per app (no full restart needed for the first three):
   #   alacritty — live_config_reload watches the imported colours file
   #   zed       — watches ~/.config/zed/themes and hot-reloads the active theme
-  #   tmux      — re-sourced here via `tmux source-file`
+  #   zellij    — theme file is swapped by ./seed.nix; zellij has no reload
+  #               action, so a running session picks it up on next start
   #   waybar    — auto-restarts via launch_waybar.sh when palette.css changes
   #   swaync    — `swaync-client --reload-css`
   #   wofi      — nothing: spawned fresh per launch, re-reads style.css each time
@@ -33,10 +34,6 @@ let
   palettesDir = "${cfgDir}/theme/palettes";
   activeFile = "${cfgDir}/theme/active-scheme";
   stateFile = "${homeDir}/.local/state/theme/current-scheme";
-
-  # Only tmuxTheme is still referenced directly (for `tmux source-file`); the
-  # other live paths are handled by the shared seed snippet (./seed.nix).
-  tmuxTheme = "${cfgDir}/tmux/theme.conf";
 
   gtkOverride = config.dynamic.theme.writeGtkOverride;
 
@@ -61,7 +58,6 @@ let
       pkgs.libnotify
       pkgs.sway
       pkgs.swaynotificationcenter
-      pkgs.tmux
       pkgs.glib # gsettings
     ];
     text = ''
@@ -120,11 +116,9 @@ let
         # launch_waybar.sh once palette.css (followed symlink) changes hash.
         swaync-client --reload-css 2>/dev/null || true
 
-        # tmux: re-source the theme into every running server (panes inherit).
-        # Alacritty (live_config_reload) and Zed (themes watcher) need nothing.
-        if command -v tmux >/dev/null 2>&1; then
-          tmux source-file ${lib.escapeShellArg tmuxTheme} 2>/dev/null || true
-        fi
+        # Alacritty (live_config_reload) and Zed (themes watcher) re-read on
+        # their own. Zellij has no reload-config action, so its swapped theme
+        # file (./seed.nix) applies to the next session start.
         ${lib.optionalString gtkOverride ''
           # Best-effort nudge so running GTK apps (e.g. nemo) re-read gtk.css.
           if command -v gsettings >/dev/null 2>&1; then

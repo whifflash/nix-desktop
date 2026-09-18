@@ -1,7 +1,7 @@
 # Evaluation smoke test for the macOS path: a standalone home-manager
 # configuration for aarch64-darwin importing every home module (evaluated on
 # the Linux CI host — nothing is built). The desktop shell self-disables (no
-# WM on macOS), theming/tmux/gopass evaluate, and repo-sync must land on
+# WM on macOS), theming/zellij/gopass evaluate, and repo-sync must land on
 # `launchd.agents` instead of systemd.
 {
   self,
@@ -65,7 +65,7 @@ let
     (expect "macOS pinentry default" (
       h.services.gpg-agent.pinentry.package.pname or "" == "pinentry-mac"
     ))
-    (expect "tmux on" h.programs.tmux.enable)
+    (expect "zellij on" h.programs.zellij.enable)
   ];
 in
 assert ok;

@@ -1,5 +1,5 @@
 {
-  description = "nix-desktop — shared Wayland desktop shell (sway/niri/waybar/swaync), token theming with a runtime switcher, gopass (store switcher, browser bridge, SSH askpass), tmux session persistence and a forge-agnostic repo-sync, as NixOS + home-manager modules";
+  description = "nix-desktop — shared Wayland desktop shell (sway/niri/waybar/swaync), token theming with a runtime switcher, gopass (store switcher, browser bridge, SSH askpass), zellij session persistence and a forge-agnostic repo-sync, as NixOS + home-manager modules";
 
   inputs = {
     # Stable is the primary target; unstable is only used to double-check the

@@ -20,12 +20,9 @@ in
     settings.general.import = [ "${home}/.config/alacritty/colors.toml" ];
   };
 
-  # tmux config lives in home/tmux.nix (imported unconditionally); append the
-  # source line here — Sway-gated — so it is only added when the theme system is
-  # present. `-q` keeps a missing file quiet; theme-set re-sources it on switch.
-  programs.tmux.extraConfig = lib.mkAfter ''
-    source-file -q ~/.config/tmux/theme.conf
-  '';
+  # Zellij needs no app-side wiring: config.kdl pins `theme
+  # "dynamic-tokenized-theme"` (home/apps/zellij.nix) and ./seed.nix swaps the
+  # file that name resolves to, exactly like the Zed theme below.
 
   # Zed: the "dynamic-tokenized-theme" theme file (~/.config/zed/themes/dynamic-tokenized-theme.json)
   # is a symlink swapped per scheme, and Zed hot-reloads its themes dir. Zed's

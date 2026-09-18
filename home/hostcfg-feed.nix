@@ -12,31 +12,42 @@ in
   #
   # File-valued knobs (dynamic.desktop.kanshi.config, dynamic.desktop.niri.outputs)
   # are nix paths and are set by the consumer directly.
-  dynamic.gopass = {
-    stores = lib.mkDefault hostConfig.gopass.stores;
-    defaultStore = lib.mkDefault hostConfig.gopass.defaultStore;
-  };
+  #
+  # Nested under one `dynamic` attrset rather than repeating `dynamic.<x> =`
+  # per section — statix flags the repeated key otherwise.
+  dynamic = {
+    gopass = {
+      stores = lib.mkDefault hostConfig.gopass.stores;
+      defaultStore = lib.mkDefault hostConfig.gopass.defaultStore;
+    };
 
-  dynamic.desktop = {
-    keyboard = {
-      layout = lib.mkDefault d.keyboardLayout;
-      variant = lib.mkDefault d.keyboardVariant;
-      options = lib.mkDefault d.keyboardOptions;
+    # [zellij] → the declared tabs of the drop-down session (home/apps/zellij.nix).
+    zellij = {
+      tabs = lib.mkDefault hostConfig.zellij.tabs;
+      defaultShell = lib.mkDefault hostConfig.zellij.defaultShell;
     };
-    touchpad.tap = lib.mkDefault d.touchpadTap;
-    waybar = {
-      vpn = {
-        wg = lib.mkDefault (nullIfEmpty d.waybarVpnWg);
-        ovpn = lib.mkDefault (nullIfEmpty d.waybarVpnOvpn);
+
+    desktop = {
+      keyboard = {
+        layout = lib.mkDefault d.keyboardLayout;
+        variant = lib.mkDefault d.keyboardVariant;
+        options = lib.mkDefault d.keyboardOptions;
       };
-      displayProfiles = {
-        docked = lib.mkDefault (nullIfEmpty d.waybarDisplayDocked);
-        laptop = lib.mkDefault (nullIfEmpty d.waybarDisplayLaptop);
+      touchpad.tap = lib.mkDefault d.touchpadTap;
+      waybar = {
+        vpn = {
+          wg = lib.mkDefault (nullIfEmpty d.waybarVpnWg);
+          ovpn = lib.mkDefault (nullIfEmpty d.waybarVpnOvpn);
+        };
+        displayProfiles = {
+          docked = lib.mkDefault (nullIfEmpty d.waybarDisplayDocked);
+          laptop = lib.mkDefault (nullIfEmpty d.waybarDisplayLaptop);
+        };
       };
+    }
+    // lib.optionalAttrs (d.scratchpadCommand != "") {
+      scratchpad.command = lib.mkDefault d.scratchpadCommand;
     };
-  }
-  // lib.optionalAttrs (d.scratchpadCommand != "") {
-    scratchpad.command = lib.mkDefault d.scratchpadCommand;
   };
 
   # [repoSync.<name>] tables map 1:1 onto services.repo-sync.instances.<name>.

@@ -157,7 +157,7 @@ let
       (h.systemd.user.timers ? "repo-sync-forge-a") && (h.systemd.user.timers ? "repo-sync-forge-b")
     ))
     (expect "kanshi unit present" (h.systemd.user.services ? kanshi))
-    (expect "tmux + swaync on" (h.programs.tmux.enable && h.services.swaync.enable))
+    (expect "zellij + swaync on" (h.programs.zellij.enable && h.services.swaync.enable))
   ];
 in
 assert ok;

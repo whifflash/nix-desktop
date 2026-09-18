@@ -5,13 +5,15 @@ machine repo so the code lives in exactly one place:
 
 - **Wayland desktop shell** — Sway and niri (both may be enabled; the greeter offers a chooser),
   Waybar (window count, VPN toggles, kanshi display buttons), swaync notifications, swaylock,
-  kanshi, flameshot, a tmux-backed drop-down terminal.
+  kanshi, flameshot, a zellij-backed drop-down terminal.
 - **Token theming with a runtime switcher** — one palette (`home/themes/palettes/*.nix`) drives
-  Sway colours, Waybar, wofi, swaync, alacritty, tmux, zed, GTK and Stylix; `theme-switcher`
+  Sway colours, Waybar, wofi, swaync, alacritty, zellij, zed, GTK and Stylix; `theme-switcher`
   flips all of them live without a rebuild.
 - **gopass** — store switcher, wofi launcher, browser bridge searching *all* stores (Firefox +
   Chromium auto-install), SSH key passphrases pulled from gopass via `SSH_ASKPASS`.
-- **tmux** — resurrect + continuum session persistence.
+- **zellij** — session persistence via native serialization, with the drop-down session's
+  stable tabs DECLARED in config.toml (`[[zellij.tabs]]`) rather than captured, so tab
+  names survive a reboot. Ad-hoc tabs return via zellij's own serialization.
 - **repo-sync** — periodic "clone everything my token can see" for Gitea / GitLab / GitHub
   (systemd user timer on Linux, launchd agent on macOS).
 - **`config.toml` knobs** — a small normaliser (`lib.mkHostConfig`) plus two feed modules that
@@ -33,7 +35,7 @@ modules = [
 ];
 # home-manager (as a NixOS module or nix-darwin module)
 home-manager.sharedModules = [
-  inputs.nix-desktop.homeManagerModules.default      # themes, desktop, tmux, gopass, repo-sync
+  inputs.nix-desktop.homeManagerModules.default      # themes, desktop, zellij, gopass, repo-sync
   inputs.nix-desktop.homeManagerModules.hostcfg-feed # only with config.toml (needs extraSpecialArgs.hostConfig)
 ];
 ```
@@ -74,7 +76,7 @@ nixos/desktop/             wayland-common (tooling, keyring, polkit, greetd fall
 nixos/hostcfg-feed.nix     hostConfig → ui.*, programs.{sway,niri}.enable
 home/themes/               tokens, palette-lib, seed, theme-switcher, per-app wiring, palettes/
 home/desktop/              options (dynamic.desktop.*), sway, niri, waybar, swaync, swaylock, kanshi, flameshot
-home/apps/                 tmux, gopass
+home/apps/                 zellij, gopass
 home/services/repo-sync    module + forge-agnostic sync.sh
 home/hostcfg-feed.nix      hostConfig → dynamic.*, services.repo-sync
 checks/                    eval-smoke stub system + assets

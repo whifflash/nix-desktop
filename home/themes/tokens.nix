@@ -130,6 +130,74 @@ let
     setw -g window-status-current-format " #I:#W "
   '';
 
+  # Zellij theme (KDL). Same trick as the Zed theme below: a FIXED theme name
+  # whose file is swapped per scheme, so config.kdl pins `theme` once and only
+  # the symlink moves (see ./seed.nix).
+  #
+  # Zellij takes DECIMAL rgb triples ("fg 202 211 245"), not hex, so the tokens
+  # are converted here. Colour roles reuse mkAnsi's mapping so the terminal
+  # colours inside a Zellij pane match alacritty/tmux/zed.
+  hexToInt =
+    h:
+    let
+      digit =
+        c:
+        {
+          "0" = 0;
+          "1" = 1;
+          "2" = 2;
+          "3" = 3;
+          "4" = 4;
+          "5" = 5;
+          "6" = 6;
+          "7" = 7;
+          "8" = 8;
+          "9" = 9;
+          "a" = 10;
+          "b" = 11;
+          "c" = 12;
+          "d" = 13;
+          "e" = 14;
+          "f" = 15;
+        }
+        .${c};
+    in
+    lib.foldl' (acc: c: acc * 16 + digit c) 0 (lib.stringToCharacters (lib.toLower h));
+
+  # "#24273a" -> "36 39 58"
+  rgb =
+    hex:
+    let
+      h = lib.removePrefix "#" hex;
+      part = o: toString (hexToInt (builtins.substring o 2 h));
+    in
+    "${part 0} ${part 2} ${part 4}";
+
+  mkZellij =
+    t:
+    let
+      a = mkAnsi t;
+    in
+    ''
+      // Dynamic tokenized theme — generated from palette tokens.
+      // Zellij expects decimal rgb triples, not hex.
+      themes {
+          dynamic-tokenized-theme {
+              fg ${rgb t.fg}
+              bg ${rgb t.bg}
+              black ${rgb a.black}
+              red ${rgb a.red}
+              green ${rgb a.green}
+              yellow ${rgb a.yellow}
+              blue ${rgb a.blue}
+              magenta ${rgb a.magenta}
+              cyan ${rgb a.cyan}
+              white ${rgb a.white}
+              orange ${rgb t.accent1}
+          }
+      }
+    '';
+
   # Zed theme (JSON). A fixed theme name ("dynamic-tokenized-theme") whose file is swapped
   # per scheme, so settings.json can pin it once and Zed hot-reloads on change.
   mkZed =
@@ -331,6 +399,7 @@ let
       "sway.colors" = mkSwayColors p.tokens;
       "alacritty.toml" = mkAlacritty p.tokens;
       "tmux.conf" = mkTmux p.tokens;
+      "zellij.kdl" = mkZellij p.tokens;
       "zed.json" = mkZed name p.tokens;
       "gtk.css" = mkGtk p.tokens;
     };

@@ -21,6 +21,7 @@ lib.concatStrings [
   (link "$HOME/.config/alacritty/colors.toml" "alacritty.toml")
   (link "$HOME/.config/tmux/theme.conf" "tmux.conf")
   (link "$HOME/.config/zed/themes/dynamic-tokenized-theme.json" "zed.json")
+  (link "$HOME/.config/zellij/themes/dynamic-tokenized-theme.kdl" "zellij.kdl")
   (lib.optionalString cfg.writeGtkOverride ''
     for gtk_css in "$HOME/.config/gtk-3.0/gtk.css" "$HOME/.config/gtk-4.0/gtk.css"; do
       # Never clobber a home-manager/Stylix-managed gtk.css (store symlink).

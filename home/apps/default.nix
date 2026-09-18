@@ -1,6 +1,6 @@
 {
   imports = [
-    ./tmux.nix
+    ./zellij.nix
     ./gopass.nix
   ];
 }

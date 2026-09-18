@@ -61,16 +61,16 @@ in
     scratchpad = {
       command = mkOption {
         type = types.str;
-        default = "${lib.getExe pkgs.tmux} new-session -A -s scratch";
-        defaultText = lib.literalExpression ''"''${lib.getExe pkgs.tmux} new-session -A -s scratch"'';
+        default = "${lib.getExe pkgs.zellij} attach --create --force-run-commands scratch";
+        defaultText = lib.literalExpression ''"''${lib.getExe pkgs.zellij} attach --create --force-run-commands scratch"'';
         description = ''
           Command run inside the drop-down terminal (Mod+i / Mod+Shift+Return).
-          The tmux module (home/apps/tmux.nix) sets this to its `tmux-scratch`
-          launcher, which on a cold tmux server restores the last resurrect save
-          synchronously BEFORE attaching to the persistent "scratch" session, so
-          the drop-down survives reboots without racing a live client. The plain
-          attach here is only the fallback if that module is not loaded. A
-          config.toml [desktop].scratchpadCommand overrides both.
+          Attaches the persistent zellij "scratch" session, creating it from the
+          declared layout (home/apps/zellij.nix) if it does not exist. Zellij
+          resurrects a serialized session natively on attach, so this needs none
+          of the restore-before-attach machinery tmux required;
+          `--force-run-commands` skips zellij's "Press ENTER to run…" prompt.
+          A config.toml [desktop].scratchpadCommand overrides this.
         '';
       };
       title = mkOption {
