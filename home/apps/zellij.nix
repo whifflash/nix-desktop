@@ -36,6 +36,20 @@ let
   prefixLetter = lib.toLower (lib.last (lib.splitString " " cfg.tmuxMode.prefix));
   prefixByte = ctrlBytes.${prefixLetter} or 1;
 
+  # Each Ctrl key zellij's modal defaults claim, and the mode whose
+  # `shared_except` block binds it — needed to unbind it in the right place.
+  shellKeyModes = {
+    "Ctrl p" = "pane";
+    "Ctrl n" = "resize";
+    "Ctrl s" = "scroll";
+    "Ctrl o" = "session";
+    "Ctrl t" = "tab";
+    "Ctrl h" = "move";
+  };
+  freeKeysKdl = lib.concatMapStrings (k: ''
+    shared_except "${shellKeyModes.${k}}" "locked" { unbind "${k}"; }
+  '') cfg.freeShellKeys;
+
   # Keybinds must go in extraConfig as raw KDL: home-manager's `settings` runs
   # through toKDL, which cannot express bind blocks (nix-community/home-manager#4659).
   # `keybinds` MERGES with zellij's defaults unless clear-defaults=true, so this
@@ -57,24 +71,21 @@ let
             bind "-" { NewPane "Down"; SwitchToMode "Normal"; }
             // Resize, which zellij's tmux mode omits entirely. Stays in Tmux
             // mode so repeats work like tmux's `bind -r`.
+            // `,` renames the TAB (zellij's default, = tmux rename-window).
+            // Panes have no tmux equivalent, so `r` renames the focused pane.
+            bind "r" { SwitchToMode "RenamePane"; }
             bind "H" { Resize "Increase Left"; }
             bind "J" { Resize "Increase Down"; }
             bind "K" { Resize "Increase Up"; }
             bind "L" { Resize "Increase Right"; }
         }
-    ${lib.optionalString cfg.freeShellKeys ''
+    ${lib.optionalString (cfg.freeShellKeys != [ ]) ''
 
-      // Give the shell back the Ctrl keys zellij's modal defaults claim.
-      // Ctrl-p/Ctrl-n are history, Ctrl-s forward-search, Ctrl-t fzf's file
-      // widget, Ctrl-o operate-and-get-next, and Ctrl-h is Backspace on many
-      // terminals. With the prefix above they are redundant anyway.
-      shared_except "pane" "locked" { unbind "Ctrl p"; }
-      shared_except "resize" "locked" { unbind "Ctrl n"; }
-      shared_except "scroll" "locked" { unbind "Ctrl s"; }
-      shared_except "session" "locked" { unbind "Ctrl o"; }
-      shared_except "tab" "locked" { unbind "Ctrl t"; }
-      shared_except "move" "locked" { unbind "Ctrl h"; }
-    ''}
+        // Give the shell back the Ctrl keys zellij's modal defaults claim.
+        // Ctrl-p/Ctrl-n are history, Ctrl-s forward-search, Ctrl-t fzf's file
+        // widget, Ctrl-o operate-and-get-next, and Ctrl-h is Backspace on many
+        // terminals. With the prefix above they are redundant anyway.
+      ${freeKeysKdl}''}
     }
   '';
 
@@ -194,12 +205,21 @@ in
     };
 
     freeShellKeys = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
+      type = lib.types.listOf (lib.types.enum (lib.attrNames shellKeyModes));
+      default = lib.attrNames shellKeyModes;
+      example = [
+        "Ctrl p"
+        "Ctrl n"
+      ];
       description = ''
-        Unbind the Ctrl keys zellij's modal defaults take over
-        (Ctrl-p/n/s/o/t/h), which otherwise shadow shell history, fzf and
-        Backspace. Redundant once the tmux prefix is in place.
+        Ctrl keys to take back from zellij's modal defaults, which otherwise
+        shadow the shell: Ctrl-p/Ctrl-n history, Ctrl-s forward-search, Ctrl-t
+        fzf's file widget, Ctrl-o operate-and-get-next, Ctrl-h Backspace on many
+        terminals. All are redundant once the tmux prefix is bound.
+
+        Per-key so you can keep one: drop "Ctrl t" from this list to hand it back
+        to zellij's tab mode instead of fzf, for instance. [ ] keeps zellij's
+        defaults entirely.
       '';
     };
 
