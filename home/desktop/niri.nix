@@ -46,8 +46,9 @@ let
   # still began at "1" broke that agreement by one, which is what made every
   # drop-down toggle walk one workspace further down.)
   #
-  # Bindings are Mod+(position + 1), so the first entry is Mod+2. Mod+1 is left
-  # free on purpose: it would only ever focus the parking spot.
+  # Bindings are Mod+(position + 1), so the first entry is Mod+2. Mod+1 is bound
+  # separately, in the binds block, to the drop-down's workspace — it sits at
+  # index 1, so it gets the key that matches its position.
   workspaces = cfg.niri.workspaces;
   wsDecls = lib.concatStringsSep "\n    " (map (n: ''workspace "${n}"'') workspaces);
   wsFocus = lib.concatStringsSep "\n" (
@@ -61,89 +62,53 @@ let
   xkbOptions = lib.optionalString (cfg.keyboard.options != "") ''options "${cfg.keyboard.options}"'';
   touchpadTap = lib.optionalString cfg.touchpad.tap "tap";
 
-  # Drop-down ("quake") terminal for niri, bound to Mod+i. niri has no native
-  # scratchpad, so hiding PARKS the window on a dedicated named workspace
-  # (scratchpad.stashWorkspace) and showing summons it back.
+  # Drop-down ("quake") terminal for niri. niri has no native scratchpad, so the
+  # terminal lives PERMANENTLY on its own named workspace
+  # (scratchpad.workspace) and the toggle just moves FOCUS there and back.
   #
-  # This used to be *ephemeral* — hiding closed the window, showing re-spawned
-  # it — on the theory that the tmux session made the terminal disposable. It
-  # did, but it meant every single toggle attached a BRAND-NEW tmux client, and
-  # tmux interrogates the terminal on each client attach: it enumerated
-  # alacritty's 256-colour palette via OSC 4, and some of those replies leaked
-  # into panes as literal `rgb:afaf/d7d7/8787` fragments. escape-time,
-  # terminal-features and quieting the save hook all failed to stop it because
-  # they treated the symptom; the trigger was the per-toggle reattach itself.
-  # Parking keeps one client attached for the life of the session, so there is
-  # no reattach and nothing to enumerate.
+  # It never moves between workspaces. That is the whole point: a window that is
+  # summoned into your current workspace and then removed necessarily disturbs
+  # that workspace's focus — niri has to pick a new focus target when it leaves,
+  # and that is not where you were. Earlier designs moved the window (first
+  # ephemeral: closed on hide; then parked on a stash workspace) and both
+  # perturbed focus, so using the drop-down silently changed which window you
+  # were on. Focusing a workspace and returning with focus-workspace-previous
+  # cannot do that: niri restores each workspace's own focused window.
   #
-  # Cost: named workspaces always exist, so the stash shows up in workspace
-  # navigation. That is the deliberate trade for a window that never dies.
+  # Ephemeral was abandoned for a second reason worth keeping: closing the
+  # terminal detached tmux/zellij, and a fresh client attach made the terminal
+  # re-enumerate its 256-colour palette (OSC 4), leaking `rgb:…` fragments into
+  # panes. One long-lived client avoids that entirely.
+  #
+  # Cost: named workspaces always exist, so it shows in workspace navigation —
+  # and it is declared FIRST on purpose (see the wsDecls comment).
   dropdownAppId = cfg.scratchpad.appId;
-  stashWs = cfg.scratchpad.stashWorkspace;
+  scratchWs = cfg.scratchpad.workspace;
   dropdownTerm = pkgs.writeShellScript "niri-dropdown-term" ''
     set -euo pipefail
     app_id="${dropdownAppId}"
+    ws="${scratchWs}"
 
-    windows=$(niri msg -j windows)
-    win=$(printf '%s' "$windows" | ${pkgs.jq}/bin/jq -c --arg a "$app_id" 'map(select(.app_id == $a)) | .[0] // empty')
-
-    # Not running → launch it. The window-rule floats + sizes it on the current
-    # workspace, focused.
-    if [ -z "$win" ]; then
-      exec ${term} --class "$app_id" -e ${cfg.scratchpad.command}
+    # Launch on first use. The window-rule opens it on $ws, floating and sized,
+    # so nothing here has to place it. Backgrounded (not exec'd) so we still run
+    # the focus step below and the user lands on it immediately.
+    launched=false
+    if ! niri msg -j windows |
+         ${pkgs.jq}/bin/jq -e --arg a "$app_id" 'any(.[]; .app_id == $a)' >/dev/null; then
+      ${term} --class "$app_id" -e ${cfg.scratchpad.command} &
+      launched=true
     fi
 
-    id=$(printf '%s' "$win" | ${pkgs.jq}/bin/jq -r '.id')
-    win_ws=$(printf '%s' "$win" | ${pkgs.jq}/bin/jq -r '.workspace_id')
-    win_focused=$(printf '%s' "$win" | ${pkgs.jq}/bin/jq -r '.is_focused')
+    cur=$(niri msg -j workspaces |
+      ${pkgs.jq}/bin/jq -r '.[] | select(.is_focused) | .name // empty')
 
-    cur=$(niri msg -j workspaces | ${pkgs.jq}/bin/jq -c 'map(select(.is_focused)) | .[0] // empty')
-    cur_ws=$(printf '%s' "$cur" | ${pkgs.jq}/bin/jq -r '.id')
-
-    if [ "$win_ws" = "$cur_ws" ]; then
-      # On the current workspace: if focused, hide it by CLOSING the window (the
-      # scratch session persists server-side); otherwise just raise it.
-      if [ "$win_focused" = "true" ]; then
-        # HIDE = park on the stash workspace. Never close: closing destroys the
-        # terminal and detaches tmux, and the next show's reattach is what made
-        # tmux re-enumerate the palette and garble panes.
-        niri msg action move-window-to-workspace "${stashWs}" --window-id "$id" --focus false
-      else
-        niri msg action focus-window --id "$id"
-      fi
+    # Already there → go back where you came from. niri's own back-and-forth,
+    # the same primitive Mod+Space uses. Never fires right after a launch, or
+    # you would be thrown off the terminal you just asked for.
+    if [ "$cur" = "$ws" ] && [ "$launched" = false ]; then
+      niri msg action focus-workspace-previous
     else
-      # Stashed or on another workspace → summon it here and focus it. Reference
-      # the current workspace by name; if unnamed, name it just for the move, then
-      # remove the name (avoids fragile per-output workspace indices).
-      # ALWAYS route via a temporary, NON-NUMERIC workspace name.
-      #
-      # niri parses a numeric workspace reference as an INDEX, not a name
-      # (WorkspaceReferenceArg = Id | Index | Name). So passing the current
-      # workspace's own name — "6" — moved the window to index 6 instead of the
-      # workspace called "6". That was harmless while the stack was exactly
-      # 1..7 and index N happened to equal workspace "N", but the stash
-      # workspace shifts those indices, so every toggle landed one workspace
-      # further down and walked you toward the stash.
-      #
-      # A non-numeric name is unambiguous, so this works whatever the indices
-      # are. The original name is restored afterwards (or the temp name dropped
-      # if the workspace had none); the trap keeps that true even if a niri
-      # call fails partway, since the script runs under `set -e`.
-      cur_name=$(printf '%s' "$cur" | ${pkgs.jq}/bin/jq -r '.name // empty')
-      tmp="__dropdown_summon__"
-      restore_ws_name() {
-        if [ -n "$cur_name" ]; then
-          niri msg action set-workspace-name "$cur_name" || true
-        else
-          niri msg action unset-workspace-name "$tmp" || true
-        fi
-      }
-      trap restore_ws_name EXIT
-      niri msg action set-workspace-name "$tmp"
-      niri msg action move-window-to-workspace "$tmp" --window-id "$id" --focus false
-      restore_ws_name
-      trap - EXIT
-      niri msg action focus-window --id "$id"
+      niri msg action focus-workspace "$ws"
     fi
   '';
 
@@ -200,7 +165,7 @@ let
     // FIRST so it permanently holds index 1, which keeps every numbered
     // workspace's name equal to its index (see the wsDecls comment above). It
     // gets no Mod+N binding of its own.
-    workspace "${stashWs}"
+    workspace "${scratchWs}"
     ${wsDecls}
 
     spawn-at-startup "${pkgs.waybar}/bin/waybar"
@@ -234,6 +199,7 @@ let
     // the toggle script (dropdownTerm). Only this window is floated.
     window-rule {
         match app-id="^${dropdownAppId}$"
+        open-on-workspace "${scratchWs}"
         open-floating true
         default-column-width { proportion 0.7; }
         default-window-height { proportion 0.6; }
@@ -320,6 +286,11 @@ let
         Mod+Minus { set-column-width "-10%"; }
         Mod+Equal { set-column-width "+10%"; }
 
+    // Workspace 1 IS the drop-down's workspace, so Mod+1 reaches it like every
+    // other Mod+N. The generated binds below start at Mod+2 for that reason.
+    // Mod+Shift+1 is deliberately absent: this workspace is the terminal's home,
+    // not somewhere to fling columns.
+    Mod+1 hotkey-overlay-title="Terminal workspace" { focus-workspace "${scratchWs}"; }
     ${wsFocus}
     ${wsMove}
 

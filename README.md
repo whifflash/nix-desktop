@@ -50,6 +50,66 @@ they are paths into *your* repo: `ui.theme.wallpapersDir` and the machine files
 Everything self-gates: import the modules unconditionally, then switch WMs with
 `programs.sway.enable` / `programs.niri.enable` (or `[features]` in TOML).
 
+## Zellij keybindings
+
+The drop-down runs zellij, driven through zellij's **built-in `tmux` mode** — a prefix-style
+island in an otherwise modal keymap. `home/apps/zellij.nix` only retargets the trigger at
+`Ctrl-a` and fills the gaps its default set omits; none of this fights zellij's design.
+
+| Key | Action |
+|---|---|
+| `Ctrl-a` | enter tmux mode (zellij's own trigger is `Ctrl-b`) |
+| `Ctrl-a` `Ctrl-a` | send a literal `Ctrl-a` through (tmux's `send-prefix`) |
+| `Ctrl-a` `\|` / `-` | split right / down (zellij's own `"` and `%` also work) |
+| `Ctrl-a` `c` / `x` | new tab / close pane |
+| `Ctrl-a` `,` / `r` | rename **tab** / rename **pane** |
+| `Ctrl-a` `h` `j` `k` `l` | focus pane |
+| `Ctrl-a` `H` `J` `K` `L` | resize pane (stays in mode, so repeats work like tmux's `bind -r`) |
+| `Ctrl-a` `n` / `p` | next / previous tab |
+| `Ctrl-a` `z` / `d` | fullscreen / detach |
+
+Tuning: `dynamic.zellij.tmuxMode.prefix`, `.freeShellKeys`, `.bar`
+(`default` | `compact` | `none`).
+
+### Ctrl keys zellij claims — and why we hand them back
+
+Zellij's modal defaults bind a lot of `Ctrl` keys, and a `keybinds` block **merges** with
+those defaults unless `clear-defaults=true`. Anything left bound is swallowed before the
+shell — or a nested program — ever sees it.
+
+`freeShellKeys` is a list (so individual keys can be kept) and unbinds:
+
+| Key | Would otherwise shadow |
+|---|---|
+| `Ctrl-p` / `Ctrl-n` | shell history |
+| `Ctrl-s` | forward-search |
+| `Ctrl-t` | fzf's file widget |
+| `Ctrl-o` | operate-and-get-next |
+| `Ctrl-h` | Backspace, on many terminals |
+
+The same applies to **nested multiplexers**, which need their own prefix key released or
+zellij consumes it first. `Ctrl-b` is therefore unbound whenever it is not itself the
+configured prefix — that is herdr's prefix inside a nix-los guest, so releasing it keeps
+`Ctrl-b <key>` working there.
+
+That leaves `Ctrl-a` (the prefix) and `Ctrl-g` (lock mode) as the only `Ctrl` keys zellij
+claims — the short list to check first when a nested tool stops receiving its keys.
+
+### Session layout
+
+Tabs are **declared**, not captured: `[[zellij.tabs]]` in `config.toml` renders into
+`layouts/<session>.kdl`, so tab names cannot drift or go missing on restore. Ad-hoc tabs you
+create by hand still return, via zellij's own `session_serialization`. Two notes worth keeping:
+
+- Supplying *any* custom layout replaces zellij's built-in one, and the tab/status bars live
+  in that layout as plugin panes — hence the explicit `default_tab_template` (`bar` option).
+  Without it a session comes up with no tab names and no overview at all.
+- Two names differ from zellij's published docs as of 0.45.1: scrollback serialization is
+  `serialize_pane_viewport` (docs say `pane_viewport_serialization`), and theme
+  `exit_code_success`/`_error` take the full six colour keys, not just `base`.
+  `zellij setup --check` validates semantics, not just KDL syntax — worth running after any
+  config or theme change.
+
 ## Developing
 
 ```sh

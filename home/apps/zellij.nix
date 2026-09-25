@@ -61,6 +61,12 @@ let
         // prefix so the muscle memory carries over.
         shared_except "tmux" "locked" {
             bind "${cfg.tmuxMode.prefix}" { SwitchToMode "Tmux"; }
+            // Release zellij's own Ctrl-b trigger once the prefix has moved.
+            // `keybinds` MERGES with the defaults, so leaving it bound means
+            // zellij eats Ctrl-b — and Ctrl-b is herdr's prefix inside a
+            // nix-los guest, which silently broke `Ctrl-b q` (herdr detach).
+            // Skipped when the prefix IS Ctrl-b, which would unbind itself.
+            ${lib.optionalString (lib.toLower cfg.tmuxMode.prefix != "ctrl b") ''unbind "Ctrl b";''}
         }
         tmux {
             // Prefix twice = send a literal prefix through (tmux send-prefix).
